@@ -43,27 +43,6 @@ func (sh *Shell) AddCommand(cmd Command) {
 }
 
 func (sh *Shell) Run(ctx context.Context) error {
-	logErr := func(err error) {
-		ErrorColor.Fprintln(os.Stderr, err.Error())
-	}
-	logValue := func(v interface{}) error {
-		if str, ok := v.(string); ok {
-			fmt.Println(str)
-			return nil
-		}
-
-		data, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			return err
-		}
-		var buf bytes.Buffer
-		if err := quick.Highlight(&buf, string(data), "json", "tty", "default"); err != nil {
-			return err
-		}
-		fmt.Println(buf.String())
-		return nil
-	}
-
 	var lasterr error
 	for {
 		line, err := sh.lin.Prompt("> ")
@@ -77,15 +56,9 @@ func (sh *Shell) Run(ctx context.Context) error {
 			return err
 		}
 
-		var retval interface{}
-		retval, lasterr = sh.Eval(ctx, line)
-		if retval != nil {
-			if err := logValue(retval); err != nil {
-				logErr(err)
-			}
-		}
+		lasterr = sh.Exec(ctx, line)
 		if lasterr != nil {
-			logErr(lasterr)
+			ErrorColor.Fprintln(os.Stderr, lasterr.Error())
 		}
 	}
 
@@ -123,4 +96,28 @@ func (sh *Shell) Eval(ctx context.Context, line string) (interface{}, error) {
 	}
 
 	return cmd.Call(ctx, args)
+}
+
+func (sh *Shell) Exec(ctx context.Context, line string) error {
+	retval, err := sh.Eval(ctx, line)
+	if err != nil {
+		return err
+	}
+
+	switch v := retval.(type) {
+	case string:
+		fmt.Println(v)
+	default:
+		data, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			return err
+		}
+		var buf bytes.Buffer
+		if err := quick.Highlight(&buf, string(data), "json", "tty", "default"); err != nil {
+			return err
+		}
+		fmt.Println(buf.String())
+	}
+
+	return nil
 }
