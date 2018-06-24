@@ -27,26 +27,26 @@ type cmdReg struct {
 }
 
 type Shell struct {
-	lin *liner.State
-
 	commands []*cmdReg
 }
 
 func New() *Shell {
-	lin := liner.NewLiner()
-	lin.SetMultiLineMode(true)
-	lin.SetTabCompletionStyle(liner.TabPrints)
-	return &Shell{lin: lin}
+	return &Shell{}
 }
 
 func (sh *Shell) AddCommand(cmd Command) {
 	sh.commands = append(sh.commands, &cmdReg{cmd.CommandInfo(), cmd})
 }
 
-func (sh *Shell) Run(ctx context.Context) error {
+func (sh *Shell) Run(ctx context.Context) (rerr error) {
+	lin := liner.NewLiner()
+	lin.SetMultiLineMode(true)
+	lin.SetTabCompletionStyle(liner.TabPrints)
+	defer func() { rerr = multierr.Append(rerr, lin.Close()) }()
+
 	var lasterr error
 	for {
-		line, err := sh.lin.Prompt("> ")
+		line, err := lin.Prompt("> ")
 		if err != nil {
 			if err == liner.ErrPromptAborted {
 				continue
