@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/peterh/liner"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 )
 
 var (
@@ -56,7 +57,7 @@ func (sh *Shell) Run(ctx context.Context) error {
 			return err
 		}
 
-		lasterr = sh.Exec(ctx, line)
+		lasterr = sh.Eval(ctx, line)
 		if lasterr != nil {
 			ErrorColor.Fprintln(os.Stderr, lasterr.Error())
 		}
@@ -65,59 +66,59 @@ func (sh *Shell) Run(ctx context.Context) error {
 	return nil
 }
 
-func (sh *Shell) Parse(line string) (Command, []string, error) {
+func (sh *Shell) Parse(line string) (string, []string, error) {
 	line = strings.TrimSpace(line)
 	if len(line) == 0 {
-		return nil, nil, nil
+		return "", nil, nil
 	}
 
 	words, err := shellwords.Parse(line)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, err
 	}
-	cmdName := words[0]
-	args := words[1:]
+	return words[0], words[1:], nil
+}
 
+func (sh *Shell) Lookup(cmdName string) Command {
 	for _, cmd := range sh.commands {
 		if cmd.info.Name == cmdName {
-			return cmd.cmd, args, nil
+			return cmd.cmd
 		}
 	}
-	return nil, nil, errors.Errorf("unrecognised command: %s", cmdName)
+	return nil
 }
 
-func (sh *Shell) Eval(ctx context.Context, line string) (interface{}, error) {
-	cmd, args, err := sh.Parse(line)
-	if err != nil {
-		return nil, err
-	}
-	if cmd == nil {
-		return nil, nil
-	}
-
-	return cmd.Call(ctx, args)
-}
-
-func (sh *Shell) Exec(ctx context.Context, line string) error {
-	retval, err := sh.Eval(ctx, line)
+func (sh *Shell) Eval(ctx context.Context, line string) error {
+	cmdName, args, err := sh.Parse(line)
 	if err != nil {
 		return err
 	}
+	return sh.Exec(ctx, cmdName, args...)
+}
+
+func (sh *Shell) Exec(ctx context.Context, cmdName string, args ...string) error {
+	cmd := sh.Lookup(cmdName)
+	if cmd == nil {
+		return errors.Errorf("command not found: %s", cmdName)
+	}
+
+	retval, reterr := cmd.Call(ctx, args)
 
 	switch v := retval.(type) {
+	case nil:
 	case string:
 		fmt.Println(v)
 	default:
 		data, err := json.MarshalIndent(v, "", "  ")
 		if err != nil {
-			return err
+			reterr = multierr.Append(reterr, err)
 		}
 		var buf bytes.Buffer
 		if err := quick.Highlight(&buf, string(data), "json", "tty", "default"); err != nil {
-			return err
+			reterr = multierr.Append(reterr, err)
 		}
 		fmt.Println(buf.String())
 	}
 
-	return nil
+	return reterr
 }
