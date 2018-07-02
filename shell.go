@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/alecthomas/chroma/quick"
 	"github.com/fatih/color"
-	"github.com/mattn/go-shellwords"
 	"github.com/peterh/liner"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -24,6 +22,20 @@ var (
 type cmdReg struct {
 	info CommandInfo
 	cmd  Command
+	sub  []*cmdReg
+}
+
+func (reg *cmdReg) Matches(name string) bool {
+	return reg.info.Name == name
+}
+
+func findReg(regs []*cmdReg, name string) *cmdReg {
+	for _, reg := range regs {
+		if reg.Matches(name) {
+			return reg
+		}
+	}
+	return nil
 }
 
 type Shell struct {
@@ -35,7 +47,15 @@ func New() *Shell {
 }
 
 func (sh *Shell) AddCommand(cmd Command) {
-	sh.commands = append(sh.commands, &cmdReg{cmd.CommandInfo(), cmd})
+	sh.commands = append(sh.commands, sh.cmdReg(cmd))
+}
+
+func (sh *Shell) cmdReg(cmd Command) *cmdReg {
+	reg := &cmdReg{info: cmd.CommandInfo(), cmd: cmd}
+	for _, sub := range reg.info.Subcommands {
+		reg.sub = append(reg.sub, sh.cmdReg(sub))
+	}
+	return reg
 }
 
 func (sh *Shell) Run(ctx context.Context) (rerr error) {
@@ -44,7 +64,6 @@ func (sh *Shell) Run(ctx context.Context) (rerr error) {
 	lin.SetTabCompletionStyle(liner.TabPrints)
 	defer func() { rerr = multierr.Append(rerr, lin.Close()) }()
 
-	var lasterr error
 	for {
 		line, err := lin.Prompt("> ")
 		if err != nil {
@@ -57,53 +76,56 @@ func (sh *Shell) Run(ctx context.Context) (rerr error) {
 			return err
 		}
 
-		lasterr = sh.Eval(ctx, line)
-		if lasterr != nil {
-			ErrorColor.Fprintln(os.Stderr, lasterr.Error())
-		}
+		v, err := sh.Eval(ctx, line)
+		sh.DumpError(sh.Dump(v))
+		sh.DumpError(err)
 	}
 
 	return nil
 }
 
-func (sh *Shell) Parse(line string) (string, []string, error) {
-	line = strings.TrimSpace(line)
-	if len(line) == 0 {
-		return "", nil, nil
-	}
-
-	words, err := shellwords.Parse(line)
-	if err != nil {
-		return "", nil, err
-	}
-	return words[0], words[1:], nil
+func (sh *Shell) Lookup(args []string) (Command, []string) {
+	return sh.lookup(sh.commands, args)
 }
 
-func (sh *Shell) Lookup(cmdName string) Command {
-	for _, cmd := range sh.commands {
-		if cmd.info.Name == cmdName {
-			return cmd.cmd
+func (sh *Shell) lookup(regs []*cmdReg, args []string) (Command, []string) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+
+	cmdName := args[0]
+	args = args[1:]
+	if reg := findReg(regs, cmdName); reg != nil {
+		if sub, rest := sh.lookup(reg.sub, args); sub != nil {
+			return sub, rest
 		}
+		return reg.cmd, args
 	}
-	return nil
+	return nil, nil
 }
 
-func (sh *Shell) Eval(ctx context.Context, line string) error {
-	cmdName, args, err := sh.Parse(line)
+func (sh *Shell) Eval(ctx context.Context, line string) (interface{}, error) {
+	args, err := SplitWords(line)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return sh.Exec(ctx, cmdName, args...)
+	return sh.Exec(ctx, args)
 }
 
-func (sh *Shell) Exec(ctx context.Context, cmdName string, args ...string) error {
-	cmd := sh.Lookup(cmdName)
+func (sh *Shell) Exec(ctx context.Context, words []string) (interface{}, error) {
+	if len(words) == 0 {
+		return nil, nil
+	}
+
+	cmd, rest := sh.Lookup(words)
 	if cmd == nil {
-		return errors.Errorf("command not found: %s", cmdName)
+		return nil, errors.Errorf("command not found: %s", words[0])
 	}
 
-	retval, reterr := cmd.Call(ctx, args)
+	return cmd.Call(ctx, rest)
+}
 
+func (sh *Shell) Dump(retval interface{}) error {
 	switch v := retval.(type) {
 	case nil:
 	case string:
@@ -111,14 +133,19 @@ func (sh *Shell) Exec(ctx context.Context, cmdName string, args ...string) error
 	default:
 		data, err := json.MarshalIndent(v, "", "  ")
 		if err != nil {
-			reterr = multierr.Append(reterr, err)
+			return err
 		}
 		var buf bytes.Buffer
 		if err := quick.Highlight(&buf, string(data), "json", "tty", "default"); err != nil {
-			reterr = multierr.Append(reterr, err)
+			return err
 		}
 		fmt.Println(buf.String())
 	}
+	return nil
+}
 
-	return reterr
+func (sh *Shell) DumpError(err error) {
+	if err != nil {
+		ErrorColor.Fprintln(os.Stderr, err.Error())
+	}
 }

@@ -6,6 +6,8 @@ import (
 
 type CommandInfo struct {
 	Name string
+
+	Subcommands []Command
 }
 
 type Command interface {
