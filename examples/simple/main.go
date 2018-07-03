@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/pflag"
+
 	"github.com/liclac/dshl"
 )
 
@@ -16,12 +18,22 @@ func (helloWorldCommand) CommandInfo() dshl.CommandInfo {
 	}
 }
 
-func (helloWorldCommand) Call(ctx context.Context, args []string) (interface{}, error) {
+func (helloWorldCommand) Flags() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("", 0)
+	flags.StringP("say", "s", "Hello", "what to say")
+	return flags
+}
+
+func (helloWorldCommand) Call(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
 	who := "World"
 	if len(args) > 0 {
 		who = args[0]
 	}
-	return "Hello, " + who, nil
+	say, err := flags.GetString("say")
+	if err != nil {
+		return nil, err
+	}
+	return say + ", " + who, nil
 }
 
 func main() {
