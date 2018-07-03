@@ -5,31 +5,37 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
 type testCmd struct {
-	Info CommandInfo
-	Fn   func(context.Context, []string) (interface{}, error)
+	info  CommandInfo
+	flags *pflag.FlagSet
+	fn    func(context.Context, *pflag.FlagSet, []string) (interface{}, error)
 }
 
 func (cmd *testCmd) CommandInfo() CommandInfo {
-	return cmd.Info
+	return cmd.info
 }
 
-func (cmd *testCmd) Call(ctx context.Context, args []string) (interface{}, error) {
-	return cmd.Fn(ctx, args)
+func (cmd *testCmd) Flags() *pflag.FlagSet {
+	return cmd.flags
 }
 
-func TestShellLookup(t *testing.T) {
+func (cmd *testCmd) Call(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
+	return cmd.fn(ctx, flags, args)
+}
+
+func TestShellEval(t *testing.T) {
 	sh := New()
 	sh.AddCommand(&testCmd{
-		Info: CommandInfo{
+		info: CommandInfo{
 			Name: "test",
 			Subcommands: []Command{
 				&testCmd{
-					Info: CommandInfo{Name: "sub"},
-					Fn: func(ctx context.Context, args []string) (interface{}, error) {
+					info: CommandInfo{Name: "sub"},
+					fn: func(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
 						if len(args) == 1 {
 							return args[0], nil
 						}
@@ -38,8 +44,19 @@ func TestShellLookup(t *testing.T) {
 				},
 			},
 		},
-		Fn: func(ctx context.Context, args []string) (interface{}, error) {
+		fn: func(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
 			return args, nil
+		},
+	})
+	sh.AddCommand(&testCmd{
+		info: CommandInfo{Name: "flag"},
+		flags: func() (flags *pflag.FlagSet) {
+			flags = pflag.NewFlagSet("", 0)
+			flags.IntP("val", "v", 0, "int flag")
+			return
+		}(),
+		fn: func(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
+			return flags.GetInt("val")
 		},
 	})
 
@@ -75,5 +92,37 @@ func TestShellLookup(t *testing.T) {
 			_, err := sh.Eval(context.Background(), `test sub hi bye`)
 			assert.EqualError(t, err, "wrong number of args: 2")
 		})
+	})
+
+	t.Run("Flags", func(t *testing.T) {
+		v, err := sh.Eval(context.Background(), `flag --val=123`)
+		assert.NoError(t, err)
+		assert.Equal(t, 123, v)
+
+		t.Run("Invalid Value", func(t *testing.T) {
+			_, err := sh.Eval(context.Background(), `flag --val=h`)
+			assert.EqualError(t, err, "invalid argument \"h\" for \"-v, --val\" flag: strconv.ParseInt: parsing \"h\": invalid syntax")
+		})
+
+		t.Run("Invalid Flag", func(t *testing.T) {
+			_, err := sh.Eval(context.Background(), `flag --uwu=123`)
+			assert.EqualError(t, err, "unknown flag: --uwu")
+		})
+	})
+
+	t.Run("Empty", func(t *testing.T) {
+		v, err := sh.Eval(context.Background(), ``)
+		assert.Nil(t, v)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Not Found", func(t *testing.T) {
+		_, err := sh.Eval(context.Background(), `weh`)
+		assert.EqualError(t, err, "command not found: weh")
+	})
+
+	t.Run("Unparseable", func(t *testing.T) {
+		_, err := sh.Eval(context.Background(), `"`)
+		assert.EqualError(t, err, "invalid command line string")
 	})
 }

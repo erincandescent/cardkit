@@ -122,7 +122,18 @@ func (sh *Shell) Exec(ctx context.Context, words []string) (interface{}, error) 
 		return nil, errors.Errorf("command not found: %s", words[0])
 	}
 
-	return cmd.Call(ctx, rest)
+	return sh.Call(ctx, cmd, rest)
+}
+
+func (sh *Shell) Call(ctx context.Context, cmd Command, args []string) (interface{}, error) {
+	flags := cmd.Flags()
+	if flags != nil {
+		if err := flags.Parse(args); err != nil {
+			return nil, err
+		}
+		args = flags.Args()
+	}
+	return cmd.Call(ctx, flags, args)
 }
 
 func (sh *Shell) Dump(retval interface{}) error {
