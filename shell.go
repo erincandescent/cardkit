@@ -41,14 +41,20 @@ func findReg(regs []*cmdReg, name string) *cmdReg {
 type Shell struct {
 	liner    *liner.State
 	commands []*cmdReg
+
+	PS1 PS1
 }
 
 func New() *Shell {
-	return &Shell{}
+	return &Shell{
+		PS1: DefaultPS1,
+	}
 }
 
 func (sh *Shell) Subshell() *Shell {
-	return &Shell{liner: sh.liner}
+	subsh := New()
+	subsh.liner = sh.liner
+	return subsh
 }
 
 func (sh *Shell) AddCommand(cmd Command) {
@@ -71,8 +77,9 @@ func (sh *Shell) Run(ctx context.Context) (rerr error) {
 		defer func() { rerr = multierr.Append(rerr, sh.liner.Close()) }()
 	}
 
+	var lasterr error
 	for {
-		line, err := sh.liner.Prompt("> ")
+		line, err := sh.Prompt(sh.PS1(lasterr))
 		if err != nil {
 			if err == liner.ErrPromptAborted {
 				continue
@@ -83,12 +90,21 @@ func (sh *Shell) Run(ctx context.Context) (rerr error) {
 			return err
 		}
 
-		v, err := sh.Eval(ctx, line)
+		var v interface{}
+		v, lasterr = sh.Eval(ctx, line)
 		sh.DumpError(sh.Dump(v))
-		sh.DumpError(err)
+		sh.DumpError(lasterr)
 	}
 
 	return nil
+}
+
+func (sh *Shell) Prompt(ps1 string) (string, error) {
+	return sh.liner.Prompt(ps1)
+}
+
+func (sh *Shell) PasswordPrompt(ps1 string) (string, error) {
+	return sh.liner.PasswordPrompt(ps1)
 }
 
 func (sh *Shell) Lookup(args []string) (Command, []string) {
