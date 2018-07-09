@@ -85,7 +85,7 @@ func (sh *Shell) Run(ctx context.Context) (rerr error) {
 				continue
 			}
 			if err == io.EOF {
-				fmt.Println("^D\n")
+				fmt.Println("")
 				break
 			}
 			return err
