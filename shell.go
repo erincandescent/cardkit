@@ -149,6 +149,8 @@ func (sh *Shell) Exec(ctx context.Context, words []string) (interface{}, error) 
 }
 
 func (sh *Shell) Call(ctx context.Context, cmd Command, args []string) (interface{}, error) {
+	ctx = WithShell(ctx, sh)
+
 	flags := cmd.Flags()
 	if flags != nil {
 		if err := flags.Parse(args); err != nil {
@@ -156,6 +158,7 @@ func (sh *Shell) Call(ctx context.Context, cmd Command, args []string) (interfac
 		}
 		args = flags.Args()
 	}
+
 	return cmd.Call(ctx, flags, args)
 }
 
