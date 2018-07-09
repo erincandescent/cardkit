@@ -24,10 +24,10 @@ func (helloWorldCommand) Flags() *pflag.FlagSet {
 	return flags
 }
 
-func (helloWorldCommand) Call(ctx context.Context, flags *pflag.FlagSet, args []string) (interface{}, error) {
+func (helloWorldCommand) Call(ctx context.Context, flags *pflag.FlagSet, args []dshl.Value) (interface{}, error) {
 	who := "World"
 	if len(args) > 0 {
-		who = args[0]
+		who = args[0].String(ctx)
 	}
 	say, err := flags.GetString("say")
 	if err != nil {

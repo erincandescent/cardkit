@@ -160,7 +160,11 @@ func (sh *Shell) Call(ctx context.Context, cmd Command, args []string) (interfac
 		args = flags.Args()
 	}
 
-	return cmd.Call(ctx, flags, args)
+	values := make([]Value, len(args))
+	for i, arg := range args {
+		values[i] = Wrap(arg)
+	}
+	return cmd.Call(ctx, flags, values)
 }
 
 func (sh *Shell) Dump(retval interface{}) error {
