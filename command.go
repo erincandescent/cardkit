@@ -21,5 +21,5 @@ type Command interface {
 
 	// Invokes the command. Returns a return value (if any), which will be printed.
 	// In the future, it will be possible to assign return values to variables.
-	Call(ctx context.Context, flags *pflag.FlagSet, args []Value) (interface{}, error)
+	Call(ctx context.Context, flags *pflag.FlagSet, args Args) (interface{}, error)
 }

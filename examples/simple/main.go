@@ -24,7 +24,7 @@ func (helloWorldCommand) Flags() *pflag.FlagSet {
 	return flags
 }
 
-func (helloWorldCommand) Call(ctx context.Context, flags *pflag.FlagSet, args []dshl.Value) (interface{}, error) {
+func (helloWorldCommand) Call(ctx context.Context, flags *pflag.FlagSet, args dshl.Args) (interface{}, error) {
 	who := "World"
 	if len(args) > 0 {
 		who = args[0].String(ctx)

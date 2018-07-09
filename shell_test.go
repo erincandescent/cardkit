@@ -12,7 +12,7 @@ import (
 type testCmd struct {
 	info  CommandInfo
 	flags *pflag.FlagSet
-	fn    func(context.Context, *pflag.FlagSet, []Value) (interface{}, error)
+	fn    func(context.Context, *pflag.FlagSet, Args) (interface{}, error)
 }
 
 func (cmd *testCmd) CommandInfo() CommandInfo {
@@ -23,7 +23,7 @@ func (cmd *testCmd) Flags() *pflag.FlagSet {
 	return cmd.flags
 }
 
-func (cmd *testCmd) Call(ctx context.Context, flags *pflag.FlagSet, args []Value) (interface{}, error) {
+func (cmd *testCmd) Call(ctx context.Context, flags *pflag.FlagSet, args Args) (interface{}, error) {
 	return cmd.fn(ctx, flags, args)
 }
 
@@ -35,7 +35,7 @@ func TestShellEval(t *testing.T) {
 			Subcommands: []Command{
 				&testCmd{
 					info: CommandInfo{Name: "sub"},
-					fn: func(ctx context.Context, flags *pflag.FlagSet, args []Value) (interface{}, error) {
+					fn: func(ctx context.Context, flags *pflag.FlagSet, args Args) (interface{}, error) {
 						if len(args) == 1 {
 							return args[0].String(ctx), nil
 						}
@@ -44,12 +44,8 @@ func TestShellEval(t *testing.T) {
 				},
 			},
 		},
-		fn: func(ctx context.Context, flags *pflag.FlagSet, args []Value) (interface{}, error) {
-			out := make([]string, len(args))
-			for i, arg := range args {
-				out[i] = arg.String(ctx)
-			}
-			return args, nil
+		fn: func(ctx context.Context, flags *pflag.FlagSet, args Args) (interface{}, error) {
+			return args.Strings(ctx), nil
 		},
 	})
 	sh.AddCommand(&testCmd{
@@ -59,7 +55,7 @@ func TestShellEval(t *testing.T) {
 			flags.IntP("val", "v", 0, "int flag")
 			return
 		}(),
-		fn: func(ctx context.Context, flags *pflag.FlagSet, args []Value) (interface{}, error) {
+		fn: func(ctx context.Context, flags *pflag.FlagSet, args Args) (interface{}, error) {
 			return flags.GetInt("val")
 		},
 	})

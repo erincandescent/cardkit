@@ -160,7 +160,7 @@ func (sh *Shell) Call(ctx context.Context, cmd Command, args []string) (interfac
 		args = flags.Args()
 	}
 
-	values := make([]Value, len(args))
+	values := make(Args, len(args))
 	for i, arg := range args {
 		values[i] = Wrap(arg)
 	}
