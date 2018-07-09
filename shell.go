@@ -39,11 +39,16 @@ func findReg(regs []*cmdReg, name string) *cmdReg {
 }
 
 type Shell struct {
+	liner    *liner.State
 	commands []*cmdReg
 }
 
 func New() *Shell {
 	return &Shell{}
+}
+
+func (sh *Shell) Subshell() *Shell {
+	return &Shell{liner: sh.liner}
 }
 
 func (sh *Shell) AddCommand(cmd Command) {
@@ -59,13 +64,15 @@ func (sh *Shell) cmdReg(cmd Command) *cmdReg {
 }
 
 func (sh *Shell) Run(ctx context.Context) (rerr error) {
-	lin := liner.NewLiner()
-	lin.SetMultiLineMode(true)
-	lin.SetTabCompletionStyle(liner.TabPrints)
-	defer func() { rerr = multierr.Append(rerr, lin.Close()) }()
+	if sh.liner == nil {
+		sh.liner = liner.NewLiner()
+		sh.liner.SetMultiLineMode(true)
+		sh.liner.SetTabCompletionStyle(liner.TabPrints)
+		defer func() { rerr = multierr.Append(rerr, sh.liner.Close()) }()
+	}
 
 	for {
-		line, err := lin.Prompt("> ")
+		line, err := sh.liner.Prompt("> ")
 		if err != nil {
 			if err == liner.ErrPromptAborted {
 				continue
