@@ -31,6 +31,6 @@ func (c *simpleCommand) Flags() *pflag.FlagSet {
 	return nil
 }
 
-func (c *simpleCommand) Call(ctx context.Context, _ *pflag.FlagSet, args []string) (interface{}, error) {
-	return c.fn(ctx, args)
+func (c *simpleCommand) Call(ctx context.Context, _ *pflag.FlagSet, args dshl.Args) (interface{}, error) {
+	return c.fn(ctx, args.Strings())
 }
