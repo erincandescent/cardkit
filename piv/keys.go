@@ -1,6 +1,7 @@
 package piv
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -55,6 +56,22 @@ var Keys = []KeyInfo{
 	KeyInfo{KeyManagementKey, "encryption", "Encryption (Key Management Key)", []byte{0x5F, 0xC1, 0x0B}},
 	KeyInfo{CardAuthenticationKey, "cardauth", "Card Authentication", []byte{0x5F, 0xC1, 0x01}},
 	KeyInfo{YubicoAttestationKey, "yk-attestation", "Certificate Attestation", []byte{0x5f, 0xff, 0x01}},
+}
+
+func init() {
+	for i := 0; i < 20; i++ {
+		id, err := RetiredKeyManagementKey(i)
+		if err != nil {
+			panic(err)
+		}
+
+		Keys = append(Keys, KeyInfo{
+			ID:    id,
+			Short: fmt.Sprintf("rkm%d", i),
+			Name:  fmt.Sprintf("Retired Key Management Key %d", i),
+			Tag:   []byte{0x5F, 0xC1, byte(0x0D + i)},
+		})
+	}
 }
 
 // GetKeyInfo gets information about the named key
