@@ -40,8 +40,8 @@ func CreateTransport(descr string) (Transport, error) {
 	var name, param string
 
 	if ix := strings.Index(descr, ":"); ix != -1 {
-		name = descr[ix:]
-		param = descr[:ix]
+		name = descr[:ix]
+		param = descr[ix+1:]
 	} else {
 		name = descr
 		param = ""
@@ -50,6 +50,6 @@ func CreateTransport(descr string) (Transport, error) {
 	if factory, ok := transports[name]; ok {
 		return factory(param)
 	} else {
-		return nil, errors.Errorf("Unable to create smart card transport with string \"%s\"", descr)
+		return nil, errors.Errorf("Unable to create smart card transport with name \"%s\"", name)
 	}
 }
