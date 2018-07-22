@@ -3,8 +3,9 @@ package card
 import (
 	"encoding/hex"
 	"net"
-	"os/user"
+	"os/exec"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/foxcpp/go-assuan/client"
@@ -19,16 +20,46 @@ type scDaemonTransport struct {
 
 var _ Transport = &scDaemonTransport{}
 
+func gpgDirs() (map[string]string, error) {
+	cmd := exec.Command("gpgconf", "--list-dirs")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, "Command returned "+string(out))
+	}
+
+	sout := string(out)
+	lines := strings.Split(sout, "\n")
+
+	opts := make(map[string]string)
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) < 2 {
+			return nil, errors.Errorf("Error parsing line \"%s\"", line)
+		}
+		opts[parts[0]] = parts[1]
+	}
+	return opts, nil
+}
+
 // NewSCDaemonTransport creates a smartcard connection
 // via GNUPG's SCDaemon service
 func NewSCDaemonTransport(socket string) (Transport, error) {
 	if len(socket) == 0 {
-		u, err := user.Current()
+		dirs, err := gpgDirs()
 		if err != nil {
 			return nil, err
 		}
 
-		socket = path.Join(u.HomeDir, ".gnupg", "S.scdaemon")
+		agentSock, ok := dirs["agent-socket"]
+		if !ok {
+			return nil, errors.New("Unable to find agent-socket in output of gpgconf")
+		}
+
+		socket = path.Join(agentSock, "..", "S.scdaemon")
 	}
 
 	pipe, err := net.Dial("unix", socket)
