@@ -29,6 +29,7 @@ func MainCmd() {
 	sh := dshl.New()
 	sh.PS1 = dshl.NewPS1("ck> ", "! ck> ")
 	sh.AddCommand(pivCmd)
+	sh.AddCommand(rawCmd)
 
 	if len(pflag.Args()) > 1 {
 		sh.Exec(ctx, pflag.Args())

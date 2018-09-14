@@ -108,3 +108,8 @@ func (c *Card) PutFileData(name FileID, body []byte) error {
 	_, err := c.Command(0x00, 0xDB, byte(name>>8), byte(name), body, 0)
 	return err
 }
+
+func (c *Card) Verify(id byte, pin []byte) error {
+	_, err := c.Command(0x00, 0x20, 0x00, id, pin, 0)
+	return err
+}
