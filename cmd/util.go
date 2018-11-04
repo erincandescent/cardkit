@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/liclac/dshl"
+	"github.com/erincandescent/cardkit/dshl"
 	"github.com/spf13/pflag"
 )
 
