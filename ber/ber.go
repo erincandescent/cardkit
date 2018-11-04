@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/binary"
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -319,7 +318,6 @@ func unmarshalStruct(buf []byte, val reflect.Value) ([]byte, error) {
 			ft = ft.Elem()
 			v.Set(reflect.New(ft))
 			v = v.Elem()
-			fmt.Println(v)
 		}
 
 		switch info.Mode {
