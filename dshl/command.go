@@ -7,12 +7,12 @@ import (
 )
 
 type CommandInfo struct {
-	Name  string
-	Args  string
-	Short string
-	Long  string
+	Name  string // Command name.
+	Usage string // Description of arg usage.
+	Short string // Short help text for `help`.
+	Long  string // Long help text for `help [name]`.
 
-	Subcommands []Command
+	Subcommands []Command // Subcommands.
 }
 
 type Command interface {

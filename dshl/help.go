@@ -19,7 +19,7 @@ type HelpCommand struct {
 func (c HelpCommand) CommandInfo() CommandInfo {
 	return CommandInfo{
 		Name:  "help",
-		Args:  "[command]",
+		Usage: "[command]",
 		Short: "Display help",
 		Long:  "Display help for the shell or a specific command.",
 	}
@@ -74,7 +74,7 @@ func (c HelpCommand) ShowCommand(ctx context.Context, args Args) error {
 	if flags == nil {
 		flags = pflag.NewFlagSet(info.Name, 0)
 	}
-	fmt.Fprintf(os.Stderr, "Usage: %s %s\n", info.Name, info.Args)
+	fmt.Fprintf(os.Stderr, "Usage: %s %s\n", info.Name, info.Usage)
 	if info.Long != "" {
 		fmt.Fprintf(os.Stderr, "\n")
 		fmt.Fprintf(os.Stderr, "%s\n", info.Long)
