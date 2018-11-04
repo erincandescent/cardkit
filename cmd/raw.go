@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	"github.com/liclac/dshl"
+	"github.com/erincandescent/cardkit/dshl"
 	"github.com/pkg/errors"
 )
 

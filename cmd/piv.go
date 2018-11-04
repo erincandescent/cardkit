@@ -33,8 +33,8 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/erincandescent/cardkit/card"
+	"github.com/erincandescent/cardkit/dshl"
 	"github.com/erincandescent/cardkit/piv"
-	"github.com/liclac/dshl"
 	"github.com/pkg/errors"
 )
 
