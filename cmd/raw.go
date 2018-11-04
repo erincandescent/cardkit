@@ -99,7 +99,10 @@ func rawApduCmd(ctx context.Context, args []string) (interface{}, error) {
 }
 
 func init() {
-	rawCmd = newSimpleCommand("raw", func(ctx context.Context, args []string) (interface{}, error) {
+	rawCmd = newSimpleCommand(dshl.CommandInfo{
+		Name:  "raw",
+		Short: "Raw command interaction tools",
+	}, func(ctx context.Context, args []string) (interface{}, error) {
 		sh := dshl.GetShell(ctx)
 		sh = sh.Subshell()
 		sh.PS1 = dshl.NewPS1("raw> ", "! raw> ")
@@ -114,8 +117,8 @@ func init() {
 	})
 
 	rawCmd.addSubcommands(
-		newSimpleCommand("selectdf", rawSelectDFCmd),
-		newSimpleCommand("verify", rawVerifyCmd),
-		newSimpleCommand("apdu", rawApduCmd),
+		newSimpleCommand(dshl.CommandInfo{Name: "selectdf"}, rawSelectDFCmd),
+		newSimpleCommand(dshl.CommandInfo{Name: "verify"}, rawVerifyCmd),
+		newSimpleCommand(dshl.CommandInfo{Name: "apdu"}, rawApduCmd),
 	)
 }

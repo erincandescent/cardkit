@@ -13,10 +13,10 @@ type simpleCommand struct {
 }
 
 func newSimpleCommand(
-	name string,
+	info dshl.CommandInfo,
 	fn func(context.Context, []string) (interface{}, error)) *simpleCommand {
 
-	return &simpleCommand{dshl.CommandInfo{Name: name}, fn}
+	return &simpleCommand{info, fn}
 }
 
 func (c *simpleCommand) addSubcommands(cmd ...dshl.Command) {

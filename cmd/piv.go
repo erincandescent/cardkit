@@ -439,7 +439,10 @@ func pivSignerCmd(ctx context.Context, args []string) (interface{}, error) {
 }
 
 func init() {
-	pivCmd = newSimpleCommand("piv", func(ctx context.Context, args []string) (interface{}, error) {
+	pivCmd = newSimpleCommand(dshl.CommandInfo{
+		Name:  "piv",
+		Short: "Low level PIV commands",
+	}, func(ctx context.Context, args []string) (interface{}, error) {
 		sh := dshl.GetShell(ctx)
 		sh = sh.Subshell()
 		sh.PS1 = dshl.NewPS1("piv> ", "! piv> ")
@@ -454,22 +457,97 @@ func init() {
 	})
 
 	pivCmd.addSubcommands(
-		newSimpleCommand("select", pivSelectCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "select",
+			Short: "Selects the PIV application",
+			Long:  "Sends a SELECT Dedicated File command to the card with the PIV AID",
+		}, pivSelectCmd),
 
-		newSimpleCommand("status", pivStatusCmd),
-		newSimpleCommand("login", pivLoginCmd),
-		newSimpleCommand("logout", pivLogoutCmd),
-		newSimpleCommand("manage", pivManageCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "status",
+			Short: "Card login status",
+			Long:  "Queries the card login status",
+		}, pivStatusCmd),
 
-		newSimpleCommand("genkey", pivGenKeyCmd),
-		newSimpleCommand("gencsr", pivGenCsrCmd),
-		newSimpleCommand("gencert", pivGenCertCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "login",
+			Args:  "[pin]",
+			Short: "Logs in",
+			Long:  "Authenticates with the card by prompting for a PIN if one is not provided",
+		}, pivLoginCmd),
 
-		newSimpleCommand("getcert", pivGetCertCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "logout",
+			Short: "Logs out",
+			Long:  "Logs out of the card, preventing further unauthenticated use",
+		}, pivLogoutCmd),
 
-		newSimpleCommand("putcert", pivPutCertCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "manage",
+			Args:  "[admin pin]",
+			Short: "Enters management mode",
+			Long:  "Enters card management mode by providing the admin PIN",
+		}, pivManageCmd),
 
-		newSimpleCommand("signer", pivSignerCmd),
-		newSimpleCommand("yk-attest", pivYKAttestCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "genkey",
+			Args:  "<key slot> <algorithm>",
+			Short: "Generates a key, without storing it on the card",
+			Long: `
+			Generates a key, without storing it on the card.
+
+			You should take the generated key, sign it (somehow), and
+			then use putcert to place the resulting certificate on the
+			card`,
+		}, pivGenKeyCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "gencsr",
+			Args:  "<key slot> <algorithm>",
+			Short: "Generates a certificate signing request, without storing it on the card",
+			Long: `
+			Generates a CSR, without storing it on the card.
+
+			You should take the generated CSR, sign it (somehow), and
+			then use putcert to place the resulting certificate on the
+			card`,
+		}, pivGenCsrCmd),
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "gencert",
+			Args:  "<key slot> <algorithm>",
+			Short: "Generates a certificate and stores it on the card",
+			Long:  "Generates a certificate and stores it on the card",
+		}, pivGenCertCmd),
+
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "getcert",
+			Args:  "<key slot>",
+			Short: "Retrieves a certificate from the card",
+			Long:  "Retrieves a certificate from the card",
+		}, pivGetCertCmd),
+
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "putcert",
+			Args:  "<putcert> <filename>",
+			Short: "Uploads a certificate to the card",
+			Long:  "Uploads a certificate to the card",
+		}, pivPutCertCmd),
+
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "signer",
+			Args:  "<key slot> [listen address]",
+			Short: "Start a CFSSL signer",
+			Long: `
+			Start a CFSSL signer on listen address, using <key slot>"
+						`,
+		}, pivSignerCmd),
+
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "yk-attest",
+			Args:  "<key slot>",
+			Short: "Attest that a key was generated on the card (Yubikey extension)",
+			Long: `
+			Requests an attestation certificate from the card for the specified key slot
+			`,
+		}, pivYKAttestCmd),
 	)
 }
