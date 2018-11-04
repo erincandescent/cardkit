@@ -77,7 +77,7 @@ func (c HelpCommand) ShowCommand(ctx context.Context, args Args) error {
 	fmt.Fprintf(os.Stderr, "Usage: %s %s\n", info.Name, info.Args)
 	if info.Long != "" {
 		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "%s", info.Long)
+		fmt.Fprintf(os.Stderr, "%s\n", info.Long)
 	}
 	if flagUsages := flags.FlagUsages(); flagUsages != "" {
 		fmt.Fprintf(os.Stderr, "\n")
