@@ -7,13 +7,56 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 
+	"github.com/erincandescent/cardkit/ber"
 	"github.com/erincandescent/cardkit/card"
-	"github.com/erincandescent/cardkit/tlv"
 	"github.com/pkg/errors"
 )
 
 // AID is the PIV Application ID
 var AID = []byte{0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00}
+
+const (
+	ObjectTagTag             = 0x5C
+	ObjectDataTag            = 0x53
+	KeyAlgorithmTag          = 0x80
+	GenerateKeyControlTag    = 0xAC
+	PublicKeyTag             = 0x7F49
+	DynamicAuthenticationTag = 0x7C
+)
+
+/*
+Witness '80' C Demonstration of knowledge of a fact without revealing
+the fact. An empty witness is a request for a witness.
+Challenge '81' C One or more random numbers or byte sequences to be
+used in the authentication protocol.
+Response '82' C A sequence of bytes encoding a response step in an
+authentication protocol.
+Exponentiation '85' C A parameter used in ECDH key agreement protocol
+*/
+type DynamicAuthentication struct {
+	Witness        *[]byte `ber:"80"`
+	Response       *[]byte `ber:"82"`
+	Challenge      *[]byte `ber:"81"`
+	Exponentiation *[]byte `ber:"85"`
+}
+
+func (r *DynamicAuthentication) Pack() ([]byte, error) {
+	req, err := ber.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return ber.Put(nil, DynamicAuthenticationTag, req)
+}
+
+func (r *DynamicAuthentication) Unpack(buf []byte) error {
+	rsp, rst, err := ber.Get(buf, DynamicAuthenticationTag, false)
+	if err != nil {
+		return err
+	} else if len(rst) > 0 {
+		return errors.New("Junk at end of DynamicAuthentication")
+	}
+	return ber.Unmarshal(rsp, r)
+}
 
 // SelectApp selects the PIV application
 func SelectApp(c *card.Card) error {
@@ -22,10 +65,10 @@ func SelectApp(c *card.Card) error {
 }
 
 // GetObject retrieves the object with the specified tag from the card
-func GetObject(c *card.Card, tag []byte) ([]byte, error) {
+func GetObject(c *card.Card, tag uint32) ([]byte, error) {
 	var req []byte
 
-	req, err := tlv.Put(req, []byte{0x5C}, tag)
+	req, err := ber.Put(req, ObjectTagTag, ber.PackTag(tag))
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +78,7 @@ func GetObject(c *card.Card, tag []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "Getting object")
 	}
 
-	data, rest, err := tlv.Get(resp, []byte{0x53}, false)
+	data, rest, err := ber.Get(resp, ObjectDataTag, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Getting object body")
 	}
@@ -47,13 +90,12 @@ func GetObject(c *card.Card, tag []byte) ([]byte, error) {
 }
 
 // SetObject stores the object with the specified tag on the card
-func SetObject(c *card.Card, tag, data []byte) error {
-	var req []byte
-	req, err := tlv.Put(req, []byte{0x5C}, tag)
+func SetObject(c *card.Card, tag uint32, data []byte) error {
+	req, err := ber.Put(nil, ObjectTagTag, ber.PackTag(tag))
 	if err != nil {
 		return err
 	}
-	req, err = tlv.Put(req, []byte{0x53}, data)
+	req, err = ber.Put(req, ObjectDataTag, data)
 	if err != nil {
 		return err
 	}
@@ -63,20 +105,21 @@ func SetObject(c *card.Card, tag, data []byte) error {
 
 // GetCertificate retrieves the certificate associated
 // with the specified key ID from the card
-func GetCertificate(card *card.Card, key KeyID) (Certificate, error) {
+func GetCertificate(card *card.Card, key KeyID) (*Certificate, error) {
 	info := key.GetInfo()
 	data, err := GetObject(card, info.Tag)
 	if err != nil {
-		return Certificate{}, errors.Wrap(err, "Getting certificate")
+		return nil, errors.Wrap(err, "Getting certificate")
 	}
 
-	return ParseCertificate(data)
+	cert := &Certificate{}
+	return cert, cert.UnmarshalBinary(data)
 }
 
 // SetCertificate stores the specified certificate on the card
 func SetCertificate(c *card.Card, key KeyID, cert Certificate) error {
 	info := key.GetInfo()
-	certBytes, err := cert.Serialize()
+	certBytes, err := cert.MarshalBinary()
 	if err != nil {
 		return err
 	}
@@ -101,7 +144,7 @@ func Login(c *card.Card, pinId PinID, pin []byte) error {
 	return err
 }
 
-// Logout signs the user out of the car
+// Logout signs the user out of the card
 func Logout(c *card.Card) error {
 	_, err := c.Command(0x00, 0x20, 0xFF, byte(ApplicationPIN), nil, 0)
 	if err != nil && card.IsStatus(err, 0x6A80) {
@@ -119,11 +162,11 @@ func Logout(c *card.Card) error {
 // anywhere - you must store it somewhere (e.g. by using the
 // card to self sign a certificate and storing that!)
 func GenerateKey(c *card.Card, key KeyID, alg AlgorithmID) (crypto.PublicKey, error) {
-	req, err := tlv.Put(nil, []byte{0x80}, []byte{byte(alg)})
+	req, err := ber.Put(nil, KeyAlgorithmTag, []byte{byte(alg)})
 	if err != nil {
 		return nil, err
 	}
-	req, err = tlv.Put(nil, []byte{0xAC}, req)
+	req, err = ber.Put(nil, GenerateKeyControlTag, req)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +176,7 @@ func GenerateKey(c *card.Card, key KeyID, alg AlgorithmID) (crypto.PublicKey, er
 		return nil, err
 	}
 
-	body, _, err := tlv.Get(resp, []byte{0x7F, 0x49}, false)
+	body, _, err := ber.Get(resp, PublicKeyTag, false)
 	if err != nil {
 		return nil, err
 	}
@@ -141,60 +184,53 @@ func GenerateKey(c *card.Card, key KeyID, alg AlgorithmID) (crypto.PublicKey, er
 	return alg.ParsePublicKey(body)
 }
 
+func GeneralAuthenticate(c *card.Card, alg AlgorithmID, key KeyID, req DynamicAuthentication) (*DynamicAuthentication, error) {
+	reqBuf, err := req.Pack()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Command(0x00, 0x87, byte(alg), byte(key), reqBuf, 256)
+	if err != nil {
+		return nil, err
+	}
+
+	respBuf := &DynamicAuthentication{}
+	return respBuf, respBuf.Unpack(resp)
+}
+
 // Manage logs in using the card admin PIN
 func Manage(c *card.Card, key []byte) error {
 	cipher, err := des.NewTripleDESCipher(key)
+	req := DynamicAuthentication{
+		Challenge: &[]byte{},
+	}
 
-	resp, err := c.Command(0x00, 0x87, byte(TripleDES), 0x9B, []byte{0x7C, 0x02, 0x81, 0x00}, 256)
+	resp, err := GeneralAuthenticate(c, TripleDES, ManagementKey, req)
 	if err != nil {
 		return errors.Wrap(err, "Getting challenge")
 	}
 
-	body, _, err := tlv.Get(resp, []byte{0x7C}, false)
-	if err != nil {
-		return err
-	}
-
-	cardChallenge, _, err := tlv.Get(body, []byte{0x81}, false)
-	if err != nil {
-		return err
-	}
-
-	cipher.Encrypt(cardChallenge, cardChallenge)
+	cipher.Encrypt(*resp.Challenge, *resp.Challenge)
 	ourChallenge := make([]byte, 8)
 	_, err = rand.Read(ourChallenge)
 	if err != nil {
 		return err
 	}
 
-	req, err := tlv.Put(nil, []byte{0x82}, cardChallenge)
-	if err != nil {
-		return err
-	}
-	req, err = tlv.Put(req, []byte{0x81}, ourChallenge)
-	if err != nil {
-		return err
-	}
-	req, err = tlv.Put(nil, []byte{0x7C}, req)
-
-	resp, err = c.Command(0x00, 0x87, byte(TripleDES), 0x9B, req, 256)
-	if err != nil {
-		return errors.Wrap(err, "Responding to challenge")
+	req = DynamicAuthentication{
+		Challenge: &ourChallenge,
+		Response:  resp.Challenge,
 	}
 
-	body, _, err = tlv.Get(resp, []byte{0x7C}, false)
+	resp, err = GeneralAuthenticate(c, TripleDES, ManagementKey, req)
 	if err != nil {
-		return err
-	}
-
-	cardResp, _, err := tlv.Get(body, []byte{0x82}, false)
-	if err != nil {
-		return err
+		return errors.Wrap(err, "Getting response")
 	}
 
 	cipher.Encrypt(ourChallenge, ourChallenge)
-	if subtle.ConstantTimeCompare(ourChallenge, cardResp) == 0 {
-		return errors.Errorf("Card failed challenge (%x != %x)", ourChallenge, cardResp)
+	if subtle.ConstantTimeCompare(ourChallenge, *resp.Response) == 0 {
+		return errors.Errorf("Card failed challenge (%x != %x)", ourChallenge, *resp.Response)
 	}
 
 	return nil
@@ -202,28 +238,20 @@ func Manage(c *card.Card, key []byte) error {
 
 // Sign signs the specified challenge
 func Sign(c *card.Card, key KeyID, alg AlgorithmID, challenge []byte) ([]byte, error) {
-	challenge, err := tlv.Put(nil, []byte{0x81}, challenge)
-	if err != nil {
-		return nil, err
+	req := DynamicAuthentication{
+		Challenge: &challenge,
 	}
-	challenge, err = tlv.Put(nil, []byte{0x7C}, challenge)
+
+	resp, err := GeneralAuthenticate(c, alg, key, req)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.Command(0x00, 0x87, byte(alg), byte(key), challenge, 256)
-	if err != nil {
-		return nil, err
+	if resp.Response == nil {
+		return nil, errors.New("No response from card")
 	}
-	body, _, err := tlv.Get(resp, []byte{0x7C}, false)
-	if err != nil {
-		return nil, err
-	}
-	resp, _, err = tlv.Get(body, []byte{0x82}, false)
-	if err != nil {
-		return nil, err
-	}
-	return resp, err
+
+	return *resp.Response, err
 }
 
 // YubicoAttest asks the card to return the attestation

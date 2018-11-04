@@ -23,7 +23,7 @@ type KeyInfo struct {
 	ID    KeyID
 	Short string
 	Name  string
-	Tag   []byte
+	Tag   uint32
 }
 
 const (
@@ -39,6 +39,8 @@ const (
 	// For YubiKey 4s, this slot contains the key which will be used to
 	// sign card generated keys.
 	YubicoAttestationKey KeyID = 0xF9
+
+	ManagementKey KeyID = 0x9B
 )
 
 // RetiredKeyManagementKey returns the ID of one of the 20 retired key management keys
@@ -51,11 +53,11 @@ func RetiredKeyManagementKey(num int) (KeyID, error) {
 }
 
 var Keys = []KeyInfo{
-	KeyInfo{AuthenticationKey, "auth", "Authentication", []byte{0x5F, 0xC1, 0x05}},
-	KeyInfo{SigningKey, "sign", "Signing", []byte{0x5F, 0xC1, 0x0A}},
-	KeyInfo{KeyManagementKey, "encryption", "Encryption (Key Management Key)", []byte{0x5F, 0xC1, 0x0B}},
-	KeyInfo{CardAuthenticationKey, "cardauth", "Card Authentication", []byte{0x5F, 0xC1, 0x01}},
-	KeyInfo{YubicoAttestationKey, "yk-attestation", "Certificate Attestation", []byte{0x5f, 0xff, 0x01}},
+	KeyInfo{AuthenticationKey, "auth", "Authentication", 0x5FC105},
+	KeyInfo{SigningKey, "sign", "Signing", 0x5FC10A},
+	KeyInfo{KeyManagementKey, "encryption", "Encryption (Key Management Key)", 0x5FC10B},
+	KeyInfo{CardAuthenticationKey, "cardauth", "Card Authentication", 0x5FC101},
+	KeyInfo{YubicoAttestationKey, "yk-attestation", "Certificate Attestation", 0x5FFF01},
 }
 
 func init() {
@@ -69,7 +71,7 @@ func init() {
 			ID:    id,
 			Short: fmt.Sprintf("rkm%d", i),
 			Name:  fmt.Sprintf("Retired Key Management Key %d", i),
-			Tag:   []byte{0x5F, 0xC1, byte(0x0D + i)},
+			Tag:   uint32(0x5FC10D + i),
 		})
 	}
 }

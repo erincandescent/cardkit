@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/erincandescent/cardkit/tlv"
+	"github.com/erincandescent/cardkit/ber"
 	"github.com/pkg/errors"
 )
 
@@ -80,23 +80,29 @@ func (a AlgorithmID) GetInfo() AlgorithmInfo {
 	return AlgorithmInfo{}
 }
 
+type rsaPubKey struct {
+	Mod []byte `ber:"81"`
+	Exp []byte `ber:"82"`
+}
+
+type ecdsaPubKey struct {
+	Points []byte `ber:"86"`
+}
+
 // ParsePublicKey parses a buffer into a public key for this algorithm
 func (a AlgorithmID) ParsePublicKey(buf []byte) (crypto.PublicKey, error) {
 	switch a {
 	case RSA_1024, RSA_2048:
 		var mod, exp big.Int
+		pk := &rsaPubKey{}
 
-		modBuf, buf, err := tlv.Get(buf, []byte{0x81}, false)
+		err := ber.Unmarshal(buf, pk)
 		if err != nil {
-			return nil, errors.Wrap(err, "Getting RSA Modulus")
-		}
-		expBuf, buf, err := tlv.Get(buf, []byte{0x82}, false)
-		if err != nil {
-			return nil, errors.Wrap(err, "Getting RSA Exponent")
+			return nil, errors.Wrap(err, "Getting RSA Key")
 		}
 
-		mod.SetBytes(modBuf)
-		exp.SetBytes(expBuf)
+		mod.SetBytes(pk.Mod)
+		exp.SetBytes(pk.Exp)
 		if !exp.IsInt64() {
 			return nil, errors.New("RSA Public exponent too big")
 		}
@@ -109,12 +115,14 @@ func (a AlgorithmID) ParsePublicKey(buf []byte) (crypto.PublicKey, error) {
 			c = elliptic.P384()
 		}
 
-		body, _, err := tlv.Get(buf, []byte{0x86}, false)
+		ek := &ecdsaPubKey{}
+
+		err := ber.Unmarshal(buf, ek)
 		if err != nil {
 			return nil, errors.Wrap(err, "Getting ECDSA key")
 		}
 
-		x, y, err := ellipticUnmarshal(c, body)
+		x, y, err := ellipticUnmarshal(c, ek.Points)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error unmarshalling card ECDSA key")
 		}
