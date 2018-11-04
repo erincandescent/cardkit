@@ -7,7 +7,10 @@ import (
 )
 
 type CommandInfo struct {
-	Name string
+	Name  string
+	Args  string
+	Short string
+	Long  string
 
 	Subcommands []Command
 }

@@ -46,9 +46,9 @@ type Shell struct {
 }
 
 func New() *Shell {
-	return &Shell{
-		PS1: DefaultPS1,
-	}
+	sh := &Shell{PS1: DefaultPS1}
+	sh.AddCommand(HelpCommand{})
+	return sh
 }
 
 func (sh *Shell) Subshell() *Shell {
