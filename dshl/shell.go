@@ -81,7 +81,7 @@ func (sh *Shell) AddCommand(cmd Command) {
 }
 
 func (sh *Shell) PushScope() *Scope {
-	sh.Scope = sh.Scope.Scope()
+	sh.Scope = sh.Scope.Child()
 	return sh.Scope
 }
 

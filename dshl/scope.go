@@ -11,7 +11,7 @@ type Scope struct {
 }
 
 // Returns a child scope, with this scope set as its parent.
-func (s *Scope) Scope() *Scope {
+func (s *Scope) Child() *Scope {
 	return &Scope{Parent: s}
 }
 
