@@ -101,16 +101,18 @@ func rawApduCmd(ctx context.Context, args []string) (interface{}, error) {
 func init() {
 	rawCmd = newSimpleCommand("raw", func(ctx context.Context, args []string) (interface{}, error) {
 		sh := dshl.GetShell(ctx)
-		sh = sh.Subshell()
-		sh.PS1 = dshl.NewPS1("raw> ", "! raw> ")
+		scope := sh.PushScope()
+		scope.PS1 = dshl.NewPS1("raw> ", "! raw> ")
+		scope.Modal = true
 		for _, c := range rawCmd.info.Subcommands {
 			sh.AddCommand(c)
 		}
 
-		if len(args) == 0 {
-			return nil, sh.Run(ctx)
+		if len(args) > 0 {
+			defer sh.PopScope(scope)
+			return sh.Exec(ctx, args)
 		}
-		return sh.Exec(ctx, args)
+		return nil, nil
 	})
 
 	rawCmd.addSubcommands(
