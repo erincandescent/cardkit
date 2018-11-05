@@ -27,6 +27,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/cloudflare/cfssl/api/signhandler"
 	"github.com/cloudflare/cfssl/config"
@@ -438,6 +439,25 @@ func pivSignerCmd(ctx context.Context, args []string) (interface{}, error) {
 	return nil, server.ListenAndServe()
 }
 
+func pivGetObjectCmd(ctx context.Context, args []string) (interface{}, error) {
+	c := getCard(ctx)
+	if len(args) != 1 {
+		return nil, errors.New("Usage: cardkit piv getobject <BER tag>")
+	}
+
+	tag, err := strconv.ParseUint(args[0], 16, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := piv.GetObject(c, uint32(tag))
+	if err != nil {
+		return nil, err
+	}
+
+	return hex.EncodeToString(data), nil
+}
+
 func init() {
 	pivCmd = newSimpleCommand(dshl.CommandInfo{
 		Name:  "piv",
@@ -524,6 +544,13 @@ func init() {
 			Short: "Retrieves a certificate from the card",
 			Long:  "Retrieves a certificate from the card",
 		}, pivGetCertCmd),
+
+		newSimpleCommand(dshl.CommandInfo{
+			Name:  "getobject",
+			Args:  "<tag>",
+			Short: "Retrieves an object from the card",
+			Long:  "Retrieves an object from the card",
+		}, pivGetObjectCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "putcert",
