@@ -49,6 +49,21 @@ func (s *Scope) Delete(name string) {
 	}
 }
 
+// Returns a map of all members visible in this scope and any parent scopes.
+func (s *Scope) All() map[string]interface{} {
+	out := make(map[string]interface{})
+	scope := s
+	for scope != nil {
+		for k, v := range scope.vars {
+			if _, ok := out[k]; !ok {
+				out[k] = v
+			}
+		}
+		scope = scope.Parent
+	}
+	return out
+}
+
 // Look up a name and the scope it's in.
 func (s *Scope) lookup(name string) (interface{}, *Scope) {
 	v, ok := s.vars[name]
