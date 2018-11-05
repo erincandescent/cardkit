@@ -57,7 +57,7 @@ func (self *debugTransport) Transact(req ReqAPDU) (RespAPDU, error) {
 	resp, err := self.Base.Transact(req)
 	if err == nil {
 		bits := chunks(resp.Data, 32)
-		log.Printf("<- %04x        | %-64x |\n", resp.SW1<<8|resp.SW2, bits[0])
+		log.Printf("<- %04x        | %-64x |\n", uint(resp.SW1)<<8|uint(resp.SW2), bits[0])
 		for i := 1; i < len(bits); i++ {
 			log.Printf("<-             | %-64x |\n", bits[i])
 		}
