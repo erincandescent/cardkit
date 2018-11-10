@@ -464,16 +464,18 @@ func init() {
 		Short: "Low level PIV commands",
 	}, func(ctx context.Context, args []string) (interface{}, error) {
 		sh := dshl.GetShell(ctx)
-		sh = sh.Subshell()
-		sh.PS1 = dshl.NewPS1("piv> ", "! piv> ")
+		scope := sh.PushScope()
+		scope.PS1 = dshl.NewPS1("piv> ", "! piv> ")
+		scope.Modal = true
 		for _, c := range pivCmd.info.Subcommands {
 			sh.AddCommand(c)
 		}
 
-		if len(args) == 0 {
-			return nil, sh.Run(ctx)
+		if len(args) > 0 {
+			defer sh.PopScope(scope)
+			return sh.Exec(ctx, args)
 		}
-		return sh.Exec(ctx, args)
+		return nil, nil
 	})
 
 	pivCmd.addSubcommands(

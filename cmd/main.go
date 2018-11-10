@@ -27,7 +27,7 @@ func MainCmd() {
 	ctx = withCard(ctx, card)
 
 	sh := dshl.New()
-	sh.PS1 = dshl.NewPS1("ck> ", "! ck> ")
+	sh.Scope.PS1 = dshl.NewPS1("ck> ", "! ck> ")
 	sh.AddCommand(pivCmd)
 	sh.AddCommand(rawCmd)
 
