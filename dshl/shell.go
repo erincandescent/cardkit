@@ -111,7 +111,20 @@ func (sh *Shell) Lookup(args []string) (Command, []string, error) {
 	if !ok {
 		return nil, nil, errors.Errorf("%s is not callable (%t)", cmdName, v)
 	}
-	return cmd, args[1:], nil
+	return sh.lookupSubcommand(cmd, args[1:])
+}
+
+func (sh *Shell) lookupSubcommand(cmd Command, args []string) (Command, []string, error) {
+	if len(args) == 0 {
+		return cmd, args, nil
+	}
+	info := cmd.CommandInfo()
+	for _, sub := range info.Subcommands {
+		if args[0] == sub.CommandInfo().Name {
+			return sh.lookupSubcommand(sub, args[1:])
+		}
+	}
+	return cmd, args, nil
 }
 
 func (sh *Shell) Eval(ctx context.Context, line string) (interface{}, error) {
