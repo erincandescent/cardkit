@@ -69,6 +69,11 @@ func (c *Card) Command(cla, ins, p1, p2 byte, data []byte, le uint) ([]byte, err
 			return nil, err
 		} else if resp.SW1 == 0x90 && resp.SW2 == 0x00 {
 			break
+		} else if resp.SW1 == 0x6C {
+			req.Le = uint(resp.SW2)
+			if req.Le == 0 {
+				req.Le = 256
+			}
 		} else if resp.SW1 == 0x61 {
 			if resp.SW2 == 0 {
 				le = 256
