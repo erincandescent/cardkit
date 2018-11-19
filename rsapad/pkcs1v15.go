@@ -78,3 +78,14 @@ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, 
 	}
 	return
 }
+
+// DigestInfoWrap wraps `hashed` in the PKCS1v1.5 DigestInfo struct for `hash`
+func DigestInfoWrap(hash crypto.Hash, hashed []byte) ([]byte, error) {
+	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+	if err != nil {
+		return nil, err
+	}
+
+	hashed = hashed[0:hashLen]
+	return append(prefix, hashed...), nil
+}
