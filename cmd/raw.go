@@ -91,7 +91,7 @@ func rawApduCmd(ctx context.Context, args []string) (interface{}, error) {
 		return nil, errors.New("Usage: apdu <cla> <ins> <p1> <p2> [data]")
 	}
 
-	res, err := getCard(ctx).Command(byte(cla), byte(ins), byte(p1), byte(p2), data, 0)
+	res, err := getCard(ctx).Command(byte(cla), byte(ins), byte(p1), byte(p2), data, 256)
 	if err != nil {
 		return nil, err
 	}
