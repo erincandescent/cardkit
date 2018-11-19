@@ -28,6 +28,7 @@ func MainCmd() {
 
 	sh := dshl.New()
 	sh.Scope.PS1 = dshl.NewPS1("ck> ", "! ck> ")
+	sh.AddCommand(openpgpCmd)
 	sh.AddCommand(pivCmd)
 	sh.AddCommand(rawCmd)
 
