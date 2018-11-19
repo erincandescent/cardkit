@@ -493,7 +493,7 @@ func init() {
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "login",
-			Args:  "[pin]",
+			Usage: "[pin]",
 			Short: "Logs in",
 			Long:  "Authenticates with the card by prompting for a PIN if one is not provided",
 		}, pivLoginCmd),
@@ -506,14 +506,14 @@ func init() {
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "manage",
-			Args:  "[admin pin]",
+			Usage: "[admin pin]",
 			Short: "Enters management mode",
 			Long:  "Enters card management mode by providing the admin PIN",
 		}, pivManageCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "genkey",
-			Args:  "<key slot> <algorithm>",
+			Usage: "<key slot> <algorithm>",
 			Short: "Generates a key, without storing it on the card",
 			Long: `
 			Generates a key, without storing it on the card.
@@ -524,7 +524,7 @@ func init() {
 		}, pivGenKeyCmd),
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "gencsr",
-			Args:  "<key slot> <algorithm>",
+			Usage: "<key slot> <algorithm>",
 			Short: "Generates a certificate signing request, without storing it on the card",
 			Long: `
 			Generates a CSR, without storing it on the card.
@@ -535,35 +535,35 @@ func init() {
 		}, pivGenCsrCmd),
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "gencert",
-			Args:  "<key slot> <algorithm>",
+			Usage: "<key slot> <algorithm>",
 			Short: "Generates a certificate and stores it on the card",
 			Long:  "Generates a certificate and stores it on the card",
 		}, pivGenCertCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "getcert",
-			Args:  "<key slot>",
+			Usage: "<key slot>",
 			Short: "Retrieves a certificate from the card",
 			Long:  "Retrieves a certificate from the card",
 		}, pivGetCertCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "getobject",
-			Args:  "<tag>",
+			Usage: "<tag>",
 			Short: "Retrieves an object from the card",
 			Long:  "Retrieves an object from the card",
 		}, pivGetObjectCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "putcert",
-			Args:  "<putcert> <filename>",
+			Usage: "<putcert> <filename>",
 			Short: "Uploads a certificate to the card",
 			Long:  "Uploads a certificate to the card",
 		}, pivPutCertCmd),
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "signer",
-			Args:  "<key slot> [listen address]",
+			Usage: "<key slot> [listen address]",
 			Short: "Start a CFSSL signer",
 			Long: `
 			Start a CFSSL signer on listen address, using <key slot>"
@@ -572,7 +572,7 @@ func init() {
 
 		newSimpleCommand(dshl.CommandInfo{
 			Name:  "yk-attest",
-			Args:  "<key slot>",
+			Usage: "<key slot>",
 			Short: "Attest that a key was generated on the card (Yubikey extension)",
 			Long: `
 			Requests an attestation certificate from the card for the specified key slot
