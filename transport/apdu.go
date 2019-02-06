@@ -1,4 +1,4 @@
-package card
+package transport
 
 import "errors"
 
@@ -52,6 +52,10 @@ type RespAPDU struct {
 	SW1  byte
 	SW2  byte
 	Data []byte
+}
+
+func (r *RespAPDU) OK() bool {
+	return r.SW1 == 0x90 && r.SW2 == 0x00
 }
 
 func ParseRespAPDU(data []byte) (RespAPDU, error) {

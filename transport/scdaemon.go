@@ -1,4 +1,4 @@
-package card
+package transport
 
 import (
 	"encoding/hex"

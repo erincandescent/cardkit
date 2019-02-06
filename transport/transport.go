@@ -1,4 +1,5 @@
-package card
+// Package transport defines smart card transports
+package transport
 
 import (
 	"strings"

@@ -1,10 +1,15 @@
 // package card provides interfaces for accdssing smartcards
 package card
 
+import "github.com/erincandescent/cardkit/transport"
+
+type ReqAPDU = transport.ReqAPDU
+type RespAPDU = transport.RespAPDU
+
 // Card represents a single card
 // Card wraps a Transport providing higher level operations
 type Card struct {
-	Transport
+	T transport.Transport
 }
 
 // FileID references a 16-bit smartcard file ID
@@ -17,8 +22,8 @@ const (
 )
 
 // New constructs a new card on the specified transport
-func New(transport string) (*Card, error) {
-	t, err := CreateTransport(transport)
+func New(transportStr string) (*Card, error) {
+	t, err := transport.CreateTransport(transportStr)
 	if err != nil {
 		return nil, err
 	}
@@ -26,75 +31,92 @@ func New(transport string) (*Card, error) {
 	return &Card{t}, nil
 }
 
-// Command composes an APDU to send to the card,
-// handling breaking large requests over multiple
-// request and response packages if necessary
-func (c *Card) Command(cla, ins, p1, p2 byte, data []byte, le uint) ([]byte, error) {
-	var respData []byte
-	var req ReqAPDU
+func (c *Card) Lock() error {
+	return c.T.Lock()
+}
 
+func (c *Card) Unlock() error {
+	return c.T.Unlock()
+}
+
+// Transact sends a request to the card and gets a response
+// Unlike the raw Transport implementation, this one will fragment
+// and reassemble large APDUs
+func (c *Card) Transact(req ReqAPDU) (RespAPDU, error) {
+	data := req.Data[:]
 	for len(data) > 255 {
-		req = ReqAPDU{
-			Cla:  cla | 0x10,
-			Ins:  ins,
-			P1:   p1,
-			P2:   p2,
+		sresp, err := c.T.Transact(ReqAPDU{
+			Cla:  req.Cla | 0x10,
+			Ins:  req.Ins,
+			P1:   req.P1,
+			P2:   req.P2,
 			Data: data[0:255],
 			Le:   0,
+		})
+
+		if err != nil || !sresp.OK() {
+			return sresp, err
 		}
-		resp, err := c.Transact(req)
-		if err != nil {
-			return nil, err
-		} else if !(resp.SW1 == 0x90 && resp.SW2 == 00) {
-			return nil, ErrorFromAPDU(resp)
-		}
+
 		data = data[255:]
 	}
 
-	req = ReqAPDU{
+	var respData []byte
+	req.Data = data
+
+	for {
+		sresp, err := c.T.Transact(req)
+		respData = append(respData, sresp.Data...)
+
+		if err != nil {
+			// Error, just return it
+			return sresp, err
+		} else if sresp.OK() {
+			sresp.Data = respData
+			return sresp, nil
+		} else if sresp.SW1 == 0x6C {
+			// Our Le was wrong, re-send request with exact
+			// value
+			if sresp.SW2 == 0 {
+				req.Le = 256
+			} else {
+				req.Le = uint(sresp.SW2)
+			}
+		} else if sresp.SW1 == 0x61 {
+			// More data remains, fetch the rest
+			req.Ins = 0xC0 // GET MORE DATA
+			req.P1 = 0x00
+			req.P2 = 0x00
+			req.Data = nil
+			if sresp.SW2 == 0 {
+				req.Le = 256
+			} else {
+				req.Le = uint(sresp.SW2)
+			}
+		} else {
+			// Other error
+			return sresp, nil
+		}
+	}
+}
+
+// Command is an easy interface for building APDUs
+func (c *Card) Command(cla, ins, p1, p2 byte, data []byte, le uint) ([]byte, error) {
+	resp, err := c.Transact(ReqAPDU{
 		Cla:  cla,
 		Ins:  ins,
 		P1:   p1,
 		P2:   p2,
 		Data: data,
 		Le:   le,
+	})
+	if err != nil {
+		return nil, err
+	} else if resp.OK() {
+		return resp.Data, nil
+	} else {
+		return nil, ErrorFromAPDU(resp)
 	}
-
-	for {
-		resp, err := c.Transact(req)
-
-		respData = append(respData, resp.Data...)
-
-		if err != nil {
-			return nil, err
-		} else if resp.SW1 == 0x90 && resp.SW2 == 0x00 {
-			break
-		} else if resp.SW1 == 0x6C {
-			req.Le = uint(resp.SW2)
-			if req.Le == 0 {
-				req.Le = 256
-			}
-		} else if resp.SW1 == 0x61 {
-			if resp.SW2 == 0 {
-				le = 256
-			} else {
-				le = uint(resp.SW2)
-			}
-
-			req = ReqAPDU{
-				Cla:  cla,
-				Ins:  0xC0,
-				P1:   0x00,
-				P2:   0x00,
-				Data: []byte{},
-				Le:   le,
-			}
-		} else {
-			return nil, ErrorFromAPDU(resp)
-		}
-	}
-
-	return respData, nil
 }
 
 // SelectDF selects a Dedicated File
