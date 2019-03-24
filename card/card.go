@@ -7,9 +7,9 @@ type ReqAPDU = transport.ReqAPDU
 type RespAPDU = transport.RespAPDU
 
 // Card represents a single card
-// Card wraps a Transport providing higher level operations
+// Card wraps a transport.Card providing higher level operations
 type Card struct {
-	T transport.Transport
+	C transport.Card
 }
 
 // FileID references a 16-bit smartcard file ID
@@ -21,22 +21,12 @@ const (
 	CurrentDF FileID = 0x3FFF
 )
 
-// New constructs a new card on the specified transport
-func New(transportStr string) (*Card, error) {
-	t, err := transport.CreateTransport(transportStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Card{t}, nil
-}
-
 func (c *Card) Lock() error {
-	return c.T.Lock()
+	return c.C.Lock()
 }
 
 func (c *Card) Unlock() error {
-	return c.T.Unlock()
+	return c.C.Unlock()
 }
 
 // Transact sends a request to the card and gets a response
@@ -45,7 +35,7 @@ func (c *Card) Unlock() error {
 func (c *Card) Transact(req ReqAPDU) (RespAPDU, error) {
 	data := req.Data[:]
 	for len(data) > 255 {
-		sresp, err := c.T.Transact(ReqAPDU{
+		sresp, err := c.C.Transact(ReqAPDU{
 			Cla:  req.Cla | 0x10,
 			Ins:  req.Ins,
 			P1:   req.P1,
@@ -65,7 +55,7 @@ func (c *Card) Transact(req ReqAPDU) (RespAPDU, error) {
 	req.Data = data
 
 	for {
-		sresp, err := c.T.Transact(req)
+		sresp, err := c.C.Transact(req)
 		respData = append(respData, sresp.Data...)
 
 		if err != nil {
